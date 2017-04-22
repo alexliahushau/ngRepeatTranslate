@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('filApp')
-    .directive('ngRepeatTranslate', function($translate, $timeout, $compile, $http, $q) {
+    .directive('ngRepeatTranslate', function($translatePartialLoader, $translate, $timeout, $compile, $q) {
         return {
             link : function($scope, $elem, $attr) {
                 /**********************************************************************/
@@ -69,24 +69,9 @@ angular.module('filApp')
                     });
                 };
 
-                var waitFortranslationJSON = function(cancelTimeout) {
-                    var deffered = $q.defer();
-                    promises.push(deffered.promise);
-
-                    var timer = $timeout(function() {
-                        watcher();
-                        deffered.resolve();
-                    }, cancelTimeout || 700);
-
-                    var watcher = $scope.$watch(function() {
-                        return _.some($http.pendingRequests, function(request) { return request.url.indexOf('api/v1/localization/i18n/' + i18jsonName) != -1; });
-                    }, function(pending) {
-                        if (!pending) {
-                            watcher();
-                            $timeout.cancel(timer);
-                            deffered.resolve();
-                        }
-                    });
+                var updateTranslation = function() {
+                    $translatePartialLoader.addPart(i18jsonName);
+                    promises.push($translate.refresh());
                 };
 
                 var translationKeyFillArgs = function() {
@@ -130,7 +115,7 @@ angular.module('filApp')
                 };
 
                 var init = function() {
-                    waitFortranslationJSON();
+                    updateTranslation();
                     validateOptionals();
                     $q.all(promises).then(function() {
                         translationKeyFillArgs();
