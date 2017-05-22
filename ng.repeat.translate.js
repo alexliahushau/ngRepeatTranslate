@@ -10,15 +10,25 @@ angular.module('filApp')
                 var itemName = args[0];
                 var translationKey = args[2];
                 var i18jsonName = translationKey.split('.')[0];
-                var optionalVars = _.map(translationKey.match(/{.*?}/g), function(item) {
-                    return item.replace(/{|}/g, '');
-                });
+                var optionalVars;
 
+
+                /** Methods section */
+                var getVariablesFromString = function(str) {
+                    return _.map(str.match(/{{.*?}}/g), function(item) {
+                        return item.replace(/{{|}}/g, '');
+                    });
+                };
+
+
+                /** Init section */
                 /** Temporarily prevent ng-include */
                 _.forEach($elem.find('[ng-include]'), function(elem) {
                     $(elem).attr('include', $(elem).attr('ng-include'));
                     $(elem).removeAttr('ng-include');
                 });
+
+                optionalVars = getVariablesFromString(translationKey);
 
                 return {
                     post: function($scope, $elem){
@@ -33,10 +43,23 @@ angular.module('filApp')
                         /** Methods section */
                         var checkScope = function() {
                             var scopeArgs = {};
-                            _.forEach(optionalVars, function(item) {
-                                scopeArgs[item] = $scope[item];
+                            _.forEach(optionalVars, function(optVar) {
+                                if (optVar.split('.').length > 1) {
+                                    _.forEach(optVar.split('.'), function(item) {
+                                        scopeArgs[optVar] = scopeArgs[optVar]
+                                            ? item.indexOf('()') === -1
+                                                ? scopeArgs[optVar][item] : scopeArgs[optVar][item.replace('()', '')]()
+                                            : $scope[item];
+                                    });
+                                } else {
+                                    scopeArgs[optVar] = $scope[optVar];
+                                }
                             });
                             return scopeArgs;
+                        };
+
+                        var isTranslationKeyResolved = function() {
+                            return _.isEmpty(getVariablesFromString($attr.ngRepeatTranslate.split(' ')[2]));
                         };
 
                         var validateOptionals = function(cancelTimeout) {
@@ -49,7 +72,7 @@ angular.module('filApp')
                             }, cancelTimeout || 500);
 
                             var watcher = $scope.$watch(function() {
-                                return !_.some(_.isEmpty(checkScope()));
+                                return _.size(checkScope()) === _.size(optionalVars);
                             }, function(ready) {
                                 if (ready) {
                                     watcher();
@@ -94,7 +117,6 @@ angular.module('filApp')
                         var compileToScope = function() {
                             clone.removeAttr('ng-repeat-translate');
                             clone.attr('ng-repeat', itemName + " in translations track by $index");
-                            clone.attr('ng-repeat', itemName + " in translations track by $index");
                             _.forEach(clone.find('[include]'), function(elem) {
                                 $(elem).attr('ng-include', $(elem).attr('include'));
                                 $(elem).removeAttr('include');
@@ -106,7 +128,7 @@ angular.module('filApp')
 
                         var init = function() {
                             updateTranslation();
-                            validateOptionals();
+                            if (!isTranslationKeyResolved()) validateOptionals();
                             $q.all(promises).then(function() {
                                 translationKeyFillArgs();
                                 translateArray();
