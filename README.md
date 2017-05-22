@@ -10,7 +10,7 @@ This Directive is a wrapper of angular ng-repeat, designed to repeat translation
     </li>
 </ul>
 
-i18 JSON example: 
+```i18 JSON example: 
 {
     "packs" : {
         "standart": {
@@ -32,4 +32,5 @@ i18 JSON example:
             ]
         }
     }
-}
+};
+```
