@@ -3,14 +3,14 @@
 This Directive is a wrapper of angular ng-repeat, designed to repeat translation keys defined as arrays.
 
 ## HOW IT WORKS
-
+```
 <ul>
     <li ng-repeat-translate="item in packs.{{type}}.features">
         <span>{{item}}</span>
     </li>
 </ul>
 
-```i18 JSON example: 
+i18 JSON example: 
 {
     "packs" : {
         "standart": {
