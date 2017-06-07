@@ -133,8 +133,31 @@ angular.module('filApp')
                                 translationKeyFillArgs();
                                 translateArray();
                                 compileToScope();
+                                enableScopeWatcher();
                             });
                         };
+
+                        var isScopeVarsChanged = function(scopeStamp) {
+                            return _.some(checkScope(), function(value, key) {
+                                return scopeStamp[key] !== value;
+                            });
+                        }
+
+
+                        /** Watchers section */
+                        var enableScopeWatcher = function() {
+                            var scopeStamp = checkScope();
+                            $scope.$watch(function() {
+                                return isScopeVarsChanged(scopeStamp);
+                            }, function(hasChanges) {
+                                if (hasChanges) {
+                                    scopeStamp = checkScope();
+                                    $scope.translations = [];
+                                    translationKeyFillArgs();
+                                    translateArray();
+                                }
+                            });
+                        }
 
 
                         /** Init section */
