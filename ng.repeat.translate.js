@@ -11,6 +11,7 @@ angular.module('filApp')
                 var translationKey = args[2];
                 var i18jsonName = translationKey.split('.')[0];
                 var optionalVars;
+                var disabledElements = [];
 
 
                 /** Methods section */
@@ -20,15 +21,53 @@ angular.module('filApp')
                     });
                 };
 
+                var getAllNgAttributes = function (elem) {
+                    var result = [];
+                    if (!elem) {
+                        return result;
+                    }
+
+                    var regexp = new RegExp(/^ng-*/i);
+
+                    var childElements = elem.children();
+                    if (childElements && childElements.length) {
+                        _.forEach(childElements, function (element) {
+                            result = _.union(result, getAllNgAttributes($(element)));
+                        });
+                    }
+
+                    elem.each(function () {
+                        $.each(this.attributes, function () {
+                            var name = this.name;
+                            if (regexp.test(name) && name !== 'ng-repeat-translate') {
+                                result.push(this.name);
+                            }
+                        });
+                    });
+
+                    return result;
+                };
+
+                disabledElements = getAllNgAttributes($elem);
+
+                var getTemporaryName = function (originalName) {
+                    return originalName.replace(/\-/g, '');
+                };
 
                 /** Init section */
-                /** Temporarily prevent ng-include */
-                _.forEach($elem.find('[ng-include]'), function(elem) {
-                    $(elem).attr('include', $(elem).attr('ng-include'));
-                    $(elem).removeAttr('ng-include');
+                _.forEach(disabledElements, function (element) {
+                    _.forEach($elem.find('[' + element + ']'), function (elem) {
+                        $(elem).attr(getTemporaryName(element), $(elem).attr(element));
+                        $(elem).removeAttr(element);
+                    });
                 });
 
                 optionalVars = getVariablesFromString(translationKey);
+
+                var generateUniqueArrayName = function (pattern) {
+                    var timestamp = new Date().getUTCMilliseconds();
+                    return pattern + '_' + Math.pow(timestamp, 2) + Math.random().toString(36).substr(2);
+                };
 
                 return {
                     post: function($scope, $elem){
@@ -37,8 +76,8 @@ angular.module('filApp')
                         var clone = $elem.clone();
                         var promises = [];
                         var filledTranslationKey;
-                        $scope.translations = [];
-
+                        var translationName = generateUniqueArrayName('translations');
+                        $scope[translationName] = [];
 
                         /** Methods section */
                         var checkScope = function() {
@@ -107,7 +146,7 @@ angular.module('filApp')
                                 if (key == value) {
                                     hasNext = false;
                                 } else {
-                                    $scope.translations.push(value);
+                                    $scope[translationName].push(value);
                                     i++;
                                 }
                             }
@@ -116,10 +155,14 @@ angular.module('filApp')
 
                         var compileToScope = function() {
                             clone.removeAttr('ng-repeat-translate');
-                            clone.attr('ng-repeat', itemName + " in translations track by $index");
-                            _.forEach(clone.find('[include]'), function(elem) {
-                                $(elem).attr('ng-include', $(elem).attr('include'));
-                                $(elem).removeAttr('include');
+                            clone.attr('ng-repeat', itemName + " in " + translationName + " track by $index");
+
+                            _.forEach(disabledElements, function (element) {
+                                var tmpName = getTemporaryName(element);
+                                _.forEach(clone.find('[' + tmpName + ']'), function (elem) {
+                                    $(elem).attr(element, $(elem).attr(tmpName));
+                                    $(elem).removeAttr(tmpName);
+                                });
                             });
 
                             $compile(clone)($scope);
@@ -141,7 +184,7 @@ angular.module('filApp')
                             return _.some(checkScope(), function(value, key) {
                                 return scopeStamp[key] !== value;
                             });
-                        }
+                        };
 
 
                         /** Watchers section */
@@ -152,12 +195,12 @@ angular.module('filApp')
                             }, function(hasChanges) {
                                 if (hasChanges) {
                                     scopeStamp = checkScope();
-                                    $scope.translations = [];
+                                    $scope[translationName] = [];
                                     translationKeyFillArgs();
                                     translateArray();
                                 }
                             });
-                        }
+                        };
 
 
                         /** Init section */
